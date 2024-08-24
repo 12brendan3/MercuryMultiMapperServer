@@ -155,7 +155,7 @@ WSServer.on('request', (request) => {
 
     if (msg.utf8Data == '') {
       logInfo(`Client ID '${clientID}' sent an empty string.`);
-      closeClientConnection(clientID, 1002);
+      closeClientConnection(clientID, 1003);
       return;
     }
 
@@ -412,13 +412,17 @@ function handleEvent(clientID, msg) {
 function checkClientVersion(clientID, incomingData) {
   if (!incomingData.StringData || incomingData.StringData.length < 2 || incomingData.StringData[0] != 'Hello MercuryMultiMapperServer!') {
     logInfo(`Client ID '${clientID}' failed the version check!`);
-    closeClientConnection(clientID, 3003);
+    closeClientConnection(clientID, 1003);
     return;
   }
 
   if (SupportedVersions.includes(incomingData.StringData[1])) {
     logInfo(`Client ID '${clientID}' sent welcome message and has a good version, sending reply.`);
     sendMessage(clientID, new MessageFormat(MessageTypes.InitConnection, [ 'Hello MercuryMapper Client!' ]));
+  } else {
+    logInfo(`Client ID '${clientID}' has a bad version.`);
+    sendMessage(clientID, new MessageFormat(MessageTypes.OutdatedClient));
+    closeClientConnection(clientID, 1003);
   }
 }
 
