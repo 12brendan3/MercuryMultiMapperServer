@@ -2,6 +2,7 @@
 const http = require('http');
 const WebSocketServer = require('websocket').server;
 const Crypto = require('node:crypto');
+const fs = require('fs');
 
 // -- Classes
 class ClientData {
@@ -91,6 +92,18 @@ const MessageTypes = {
 // -- Global changing values
 let currentNewClientID = 0;
 let currentNewSessionID = 0;
+let logPath;
+
+// -- Where it all starts
+// Make log directory
+if (!fs.existsSync('logs')) {
+  fs.mkdirSync('logs');
+}
+
+// Make new log file
+const date = new Date();
+logPath = `logs/${date.getMonth()}-${date.getDate()}-${date.getFullYear()}_${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}.log`;
+fs.writeFileSync(logPath, '', 'utf-8');
 
 // Create the base HTTP server and return 418 for standard requests
 const HTTPServer = http.createServer((req, res) => {
@@ -102,7 +115,8 @@ const HTTPServer = http.createServer((req, res) => {
 
 // Have the HTTP server start listening
 HTTPServer.listen(Port, () => {
-  logInfo(`MercuryMultiMapper listening on port ${Port}...`);
+  console.info(`MercuryMultiMapperServer listening on port ${Port}...`);
+  logInfo(`MercuryMultiMapperServer started.`);
 });
 
 // Create WebSocket server instance
@@ -180,7 +194,7 @@ function requestAllowed(request) {
 }
 
 function logInfo(log) {
-  console.info(`${new Date()}: ${log}`);
+  fs.appendFileSync(logPath, `${new Date()}: ${log}\n`, 'utf-8');
 }
 
 function closeClientConnection(clientID, code) {
