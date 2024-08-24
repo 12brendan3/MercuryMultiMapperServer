@@ -1,0 +1,22 @@
+{
+  "name": "mercury-multi-mapper-server",
+  "version": "1.0.0",
+  "description": "A simple relay server for MercuryMapper.  Meant to be proxied through an NGINX server.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/12brendan3/MercuryMultiMapperServer.git"
+  },
+  "author": "Brendan Root",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/12brendan3/MercuryMultiMapperServer/issues"
+  },
+  "homepage": "https://github.com/12brendan3/MercuryMultiMapperServer#readme",
+  "dependencies": {
+    "websocket": "^1.0.35"
+  }
+}
