@@ -6,8 +6,9 @@ const fs = require('fs');
 
 // -- Classes
 class ClientData {
-  constructor(sessionID, username, color) {
+  constructor(sessionID, synced, username, color) {
     this.sessionID = sessionID;
+    this.synced = synced;
     this.username = username;
     this.color = color;
   }
@@ -19,6 +20,7 @@ class SessionData {
     this.name = name;
     this.creatorID = creatorID;
     this.clientIDs = [ creatorID ];
+    this.syncing = false;
   }
 }
 
@@ -56,7 +58,8 @@ const MessageTypes = {
   SyncRequest: 9,
   File: 10,
   ChartData: 11,
-  SyncDone: 12,
+  SyncBegin: 12,
+  SyncEnd: 13,
 
   // 100 - Metadata
   VersionChange: 100,
@@ -161,7 +164,9 @@ WSServer.on('request', (request) => {
 
   conn.on('close', () => {
     logInfo(`Client ID '${clientID}' disconnected.`);
-    
+
+    checkSessionSyncStatus(clientID);
+
     const clientInfo = Clients.get(clientID);
 
     if (clientInfo) {
@@ -169,11 +174,11 @@ WSServer.on('request', (request) => {
   
       if (sessionInfo) {
         if (clientID == sessionInfo.creatorID) {
-          sendMessageOtherClients(clientID, new MessageFormat(MessageTypes.SessionClosed));
+          sendMessageOtherSessionClients(clientID, new MessageFormat(MessageTypes.SessionClosed));
     
           Sessions.delete(clientInfo.sessionID);
         } else {
-          sendMessageOtherClients(clientID, new MessageFormat(MessageTypes.LeaveSession, null, [ clientID ]));
+          sendMessageOtherSessionClients(clientID, new MessageFormat(MessageTypes.LeaveSession, null, [ clientID ]));
 
           sessionInfo.clientIDs = sessionInfo.clientIDs.filter(id => id !== clientID);
         }
@@ -255,7 +260,7 @@ function sendMessageSessionCreator(clientID, messageData) {
   }
 }
 
-function sendMessageOtherClients(clientID, messageData) {
+function sendMessageOtherSessionClients(clientID, messageData) {
   const clientInfo = Clients.get(clientID);
 
   if (!clientInfo) {
@@ -271,6 +276,18 @@ function sendMessageOtherClients(clientID, messageData) {
 
     if (clientData) {
       clientData.send(JSON.stringify(messageData));
+    }
+  });
+}
+
+function sendMessageSessionAll(sessionID, messageData) {
+  const clients = Sessions.get(sessionID).clientIDs;
+  
+  clients.forEach(clientID => {
+    const clientConnection = ClientConnections.get(clientID);
+
+    if (clientConnection) {
+      clientConnection.send(JSON.stringify(messageData));
     }
   });
 }
@@ -295,6 +312,18 @@ function checkForDuplicateSessionCode(code) {
 function checkInvalidFileExtension(fileName) {
   for (let i = 0; i < ValidFileExtensions.length; i++) {
     if (fileName.endsWith(ValidFileExtensions[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function isSessionSynced(sendingClientSessionInfo) {
+  for (let i = 0; i < sendingClientSessionInfo.clientIDs.length; i++) {
+    const clientInfo = Clients.get(sendingClientSessionInfo.clientIDs[i]);
+
+    if (clientInfo && !clientInfo.synced) {
       return false;
     }
   }
@@ -340,8 +369,8 @@ function handleEvent(clientID, msg) {
     case MessageTypes.ChartData:
       relayFileOrChartData(clientID, incomingData);
       return;
-    case MessageTypes.SyncDone:
-      sendMessageSessionCreator(clientID, new MessageFormat(MessageTypes.SyncDone, null, [ clientID ]));
+    case MessageTypes.SyncEnd:
+      checkSessionSyncStatus(clientID);
       return;
     case MessageTypes.VersionChange:
     case MessageTypes.TitleChange:
@@ -368,11 +397,11 @@ function handleEvent(clientID, msg) {
     case MessageTypes.InsertGimmick:
     case MessageTypes.EditGimmick:
     case MessageTypes.DeleteGimmick:
-      sendMessageOtherClients(clientID, incomingData);
+      sendMessageOtherSessionClients(clientID, incomingData);
       return;
     case MessageTypes.ClientTimestamp:
       incomingData.IntData.unshift(clientID);
-      sendMessageOtherClients(clientID, incomingData);
+      sendMessageOtherSessionClients(clientID, incomingData);
       return;
     default:
       logInfo(`Client ID '${clientID}' sent unsupported request ID '${incomingData.MessageType}.'`);
@@ -397,7 +426,7 @@ function createSession(clientID, incomingData) {
   const code = generateSessionCode();
   const newSessionID = currentNewSessionID++;
 
-  const clientData = new ClientData(newSessionID, incomingData.StringData[0], incomingData.StringData[1]);
+  const clientData = new ClientData(newSessionID, true, incomingData.StringData[0], incomingData.StringData[1]);
 
   Clients.set(clientID, clientData);
 
@@ -419,7 +448,7 @@ function joinSession(clientID, incomingData) {
     return;
   }
 
-  const clientData = new ClientData(sessionID, incomingData.StringData[1], incomingData.StringData[2]);
+  const clientData = new ClientData(sessionID, false, incomingData.StringData[1], incomingData.StringData[2]);
 
   Clients.set(clientID, clientData);
 
@@ -439,6 +468,11 @@ function joinSession(clientID, incomingData) {
 
   sessionData.clientIDs.push(clientID);
 
+  if (!sessionData.syncing) {
+    sessionData.syncing = true;
+    sendMessageSessionAll(sessionID, new MessageFormat(MessageTypes.SyncBegin));
+  }
+
   logInfo(`Client ID '${clientID}' joined session ID '${sessionID}' using username '${clientData.username}' and color '${clientData.color}.'`);
 }
 
@@ -450,6 +484,12 @@ function leaveSession(clientID) {
 function relayFileOrChartData(sendingClientID, incomingData) {
   const sendingClientInfo = Clients.get(sendingClientID);
   const sendingClientSessionInfo = Sessions.get(sendingClientInfo.sessionID);
+
+  if (!sendingClientSessionInfo) {
+    logInfo(`Client ID '${sendingClientID}' tried to send a file type to client ID '${receivingClientID}' without being in a session!`);
+    closeClientConnection(sendingClientID);
+    return;
+  }
 
   const receivingClientID = incomingData.IntData[0];
   incomingData.IntData = [];
@@ -467,4 +507,22 @@ function relayFileOrChartData(sendingClientID, incomingData) {
   }
 
   sendMessage(receivingClientID, incomingData);
+}
+
+function checkSessionSyncStatus(clientID) {
+  const sendingClientInfo = Clients.get(clientID);
+  const sessionInfo = Sessions.get(sendingClientInfo.sessionID);
+
+  if (!sessionInfo) return
+  
+  if (!sendingClientInfo.synced) return;
+
+  if (!sessionInfo.syncing) return;
+
+  sendingClientInfo.synced = true;
+
+  if (isSessionSynced(sessionInfo)) {
+    sessionInfo.syncing = false;
+    sendMessageSessionAll(sendingClientInfo.sessionID, new MessageFormat(MessageTypes.SyncEnd));
+  }
 }
