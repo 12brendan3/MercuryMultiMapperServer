@@ -519,7 +519,7 @@ function checkSessionSyncStatus(clientID) {
 
   if (!sessionInfo) return
   
-  if (!sendingClientInfo.synced) return;
+  if (sendingClientInfo.synced) return;
 
   if (!sessionInfo.syncing) return;
 
