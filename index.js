@@ -515,9 +515,12 @@ function relayFileOrChartData(sendingClientID, incomingData) {
 
 function checkSessionSyncStatus(clientID) {
   const sendingClientInfo = Clients.get(clientID);
+
+  if (!sendingClientInfo || !sendingClientInfo.sessionID) return;
+
   const sessionInfo = Sessions.get(sendingClientInfo.sessionID);
 
-  if (!sessionInfo) return
+  if (!sessionInfo) return;
   
   if (sendingClientInfo.synced) return;
 
