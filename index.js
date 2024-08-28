@@ -115,25 +115,27 @@ fs.writeFileSync(logPath, '', 'utf-8');
 
 // Create the base HTTP server and return 404 for unknown requests
 const HTTPServer = http.createServer((req, res) => {
-  switch(req.url) {
-    case '/':
-    case '/index.html':
+  const file = req.url.split('/').pop();
+  
+  switch(file) {
+    case '':
+    case 'index.html':
       res.setHeader('Content-Type', 'text/html');
       res.end(WebPage);
       break;
-    case '/favicon.ico':
+    case 'favicon.ico':
       res.setHeader('Content-Type', 'image/x-icon');
       res.end(WebIcon);
       break;
-    case '/favicon-16x16.png':
+    case 'favicon-16x16.png':
       res.setHeader('Content-Type', 'image/png');
       res.end(WebIcon16);
       break;
-    case '/favicon-32x32.png':
+    case 'favicon-32x32.png':
       res.setHeader('Content-Type', 'image/png');
       res.end(WebIcon32);
       break;
-    case '/status':
+    case 'status':
       res.setHeader('Content-Type', 'application/json');
       res.end(getStatus());
       break;
