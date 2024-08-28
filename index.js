@@ -140,10 +140,8 @@ const HTTPServer = http.createServer((req, res) => {
       res.end(getStatus());
       break;
     default:
-      logInfo(`Client with IP '${req.headers['x-forwarded-for'] ?? req.socket.remoteAddress}' tried an unsupported HTTP request, replied with 404.`);
-      res.statusCode = 404;
-      res.setHeader('Content-Type', 'text/plain');
-      res.write('390: Chart editor not found.');
+      // Put a "/" onto the end of unknown URLs to force the index page
+      res.writeHead(302, { Location: `${file}/` });
       res.end();
       break;
     }
