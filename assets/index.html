@@ -1,0 +1,213 @@
+<!DOCTYPE HTML>
+
+<html lang="EN">
+    <head>
+        <title>MercuryMultiMapperServer Status</title>
+
+        <meta charset="UTF-8"/>
+        <meta name="robots" content="noindex,nofollow"/>
+        <meta name="referrer" content="no-referrer"/>
+
+        <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+        <link rel="shortcut icon" href="favicon.ico">
+
+        <style>
+            html {
+                font-family:system-ui,sans-serif;
+                font-weight:normal;
+                color:#f5f5f5;
+                background:#000;
+            }
+
+            h1,h2,p {
+                text-align:center;
+            }
+
+            ul {
+                margin:auto;
+                width:fit-content;
+                padding:0;
+            }
+
+            p#refresh-button:hover {
+                cursor:pointer;
+                opacity:0.8;
+            }
+
+            .nomargin {
+                margin:0;
+            }
+
+            .hidden {
+                display:none;
+            }
+
+            .bold {
+                font-weight:bolder;
+            }
+
+            .underline {
+                text-decoration:underline;
+            }
+
+            .blue {
+                color:#9999F5;
+            }
+
+            .green {
+                color:#99F599;
+            }
+
+            .red {
+                color:#F59999;
+            }
+
+            @media(orientation:landscape) {
+                h1 {
+                    font-size:3vh;
+                }
+
+                h2 {
+                    font-size:2vh;
+                }
+
+                p {
+                    font-size:1.5vh;
+                }
+
+                li {
+                    font-size:1.3vh;
+                }
+            }
+
+            @media(orientation:portrait) {
+                h1 {
+                    font-size:5.4vw;
+                }
+
+                h2 {
+                    font-size:5vw;
+                }
+
+                p {
+                    font-size:4vw;
+                }
+
+                li {
+                    font-size:3.8vw;
+                }
+            }
+        </style>
+    </head>
+
+    <body>
+        <h1 class="underline nomargin">MercuryMultiMapperServer Status</h1>
+        <p class="green nomargin">Well, it's clearly up since you're seeing this page!</p>
+        
+        <br/>
+        
+        <p id="refresh-text" class="green">Getting Status...</p>
+        <p id="error-text" class="hidden red">There was an error getting the status.</p>
+        <p id="refresh-button" class="hidden blue underline" onclick="getStatus()">Refresh Status</p>
+        
+        <br/>
+
+        <h2 class="underline nomargin">MMMS</h2>
+        <ul>
+            <li>MMMS Uptime: <span id="mmms-uptime"></span></li>
+            <li>Connections: <span id="connections"></span></li>
+            <li>Sessions: <span id="sessions"></span></li>
+            <li>Clients: <span id="clients"></span></li>
+        </ul>
+        
+        <br/>
+        <br/>
+
+        <h2 class="underline nomargin">System</h2>
+        <ul>
+            <li>System Uptime: <span id="system-uptime"></span></li>
+            <li>CPU Usage (1m, 5m, 15m): <span id="cpu"></span></li>
+            <li>Used System RAM: <span id="used-ram"></span></li>
+            <li>Free System RAM: <span id="free-ram"></span></li>
+            <li>Total System RAM: <span id="total-ram"></span></li>
+        </ul>
+
+        <script>
+            const refreshText = document.getElementById('refresh-text');
+            const errorText = document.getElementById('error-text');
+            const refreshButton = document.getElementById('refresh-button');
+
+            const mmmsUptime = document.getElementById('mmms-uptime');
+            const connections = document.getElementById('connections');
+            const sessions = document.getElementById('sessions');
+            const clients = document.getElementById('clients');
+            const systemUptime = document.getElementById('system-uptime');
+            const cpu = document.getElementById('cpu');
+            const usedRam = document.getElementById('used-ram');
+            const freeRam = document.getElementById('free-ram');
+            const totalRam = document.getElementById('total-ram');
+    
+            async function getStatus() {
+                refreshButton.classList.add('hidden');
+                refreshText.classList.remove('hidden');
+                errorText.classList.add('hidden');
+
+                mmmsUptime.innerText = '-';
+                connections.innerText = '-';
+                sessions.innerText = '-';
+                clients.innerText = '-';
+                systemUptime.innerText = '-';
+                cpu.innerText = '-';
+                usedRam.innerText = '-';
+                freeRam.innerText = '-';
+                totalRam.innerText = '-';
+    
+                let res = null;
+
+                try {
+                    res = await fetch('status');
+                } catch {
+                    errorText.classList.remove('hidden');
+                    return;
+                } finally  {
+                    refreshText.classList.add('hidden');
+                    refreshButton.classList.remove('hidden');
+                }
+
+                const resJson = await res.json();
+
+                mmmsUptime.innerText = secondsToDhms(resJson.procUptime);
+                connections.innerText = resJson.connections;
+                sessions.innerText = resJson.sessions;
+                clients.innerText = resJson.clients;
+                systemUptime.innerText = secondsToDhms(resJson.osUptime);
+                cpu.innerText = `${resJson.osCPU[0]}, ${resJson.osCPU[1]}, ${resJson.osCPU[2]}`;
+                usedRam.innerText = convertToGB(resJson.osTotalRAM - resJson.osFreeRAM) + ' GB';
+                freeRam.innerText = convertToGB(resJson.osFreeRAM) + ' GB';
+                totalRam.innerText = convertToGB(resJson.osTotalRAM) + ' GB';
+            }
+
+            function convertToGB(bytes) {
+                return Math.round((bytes / Math.pow(2,30) + Number.EPSILON) * 100) / 100;
+            }
+
+            // https://stackoverflow.com/a/52387803 - Thanks, I'm lazy
+            function secondsToDhms(seconds) {
+                const d = Math.floor(seconds / (3600*24));
+                const h = Math.floor(seconds % (3600*24) / 3600);
+                const m = Math.floor(seconds % 3600 / 60);
+                const s = Math.floor(seconds % 60);
+
+                const dDisplay = d > 0 ? d + (d == 1 ? " day, " : " days, ") : "";
+                const hDisplay = h > 0 ? h + (h == 1 ? " hour, " : " hours, ") : "";
+                const mDisplay = m > 0 ? m + (m == 1 ? " minute, " : " minutes, ") : "";
+                const sDisplay = s > 0 ? s + (s == 1 ? " second" : " seconds") : "";
+
+                return dDisplay + hDisplay + mDisplay + sDisplay;
+            }
+    
+            getStatus();
+        </script>
+    </body>
+</html>

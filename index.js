@@ -1,8 +1,9 @@
 // -- Imports
-const http = require('http');
+const http = require('node:http');
 const WebSocketServer = require('websocket').server;
 const Crypto = require('node:crypto');
-const fs = require('fs');
+const fs = require('node:fs');
+const os = require('node:os');
 
 // -- Classes
 class ClientData {
@@ -15,9 +16,8 @@ class ClientData {
 }
 
 class SessionData {
-  constructor(code, name, creatorID) {
+  constructor(code, creatorID) {
     this.code = code;
-    this.name = name;
     this.creatorID = creatorID;
     this.clientIDs = [ creatorID ];
     this.syncing = false;
@@ -41,6 +41,11 @@ const Port = 5390;
 const ClientConnections = new Map();
 const Clients = new Map();
 const Sessions = new Map();
+
+const WebPage = fs.readFileSync('./assets/index.html');
+const WebIcon = fs.readFileSync('./assets/favicon.ico');
+const WebIcon16 = fs.readFileSync('./assets/favicon-16x16.png');
+const WebIcon32 = fs.readFileSync('./assets/favicon-32x32.png');
 
 const CodeChars = 'ACDEFGHJKPRTUVWXYZ0123456789';
 
@@ -108,12 +113,38 @@ const date = new Date();
 logPath = `logs/${date.getMonth()}-${date.getDate()}-${date.getFullYear()}_${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}.log`;
 fs.writeFileSync(logPath, '', 'utf-8');
 
-// Create the base HTTP server and return 418 for standard requests
+// Create the base HTTP server and return 404 for unknown requests
 const HTTPServer = http.createServer((req, res) => {
-  logInfo(`Client with IP '${req.headers['x-forwarded-for'] ?? req.socket.remoteAddress}' tried regular HTTP request, replied with 418.`);
-  res.writeHead(418, { 'Content-Type': 'text/plain'});
-  res.write('390: Chart editor not found.  This is a MercuryMultiMapperServer!');
-  res.end();
+  switch(req.url) {
+    case '/':
+    case '/index.html':
+      res.setHeader('Content-Type', 'text/html');
+      res.end(WebPage);
+      break;
+    case '/favicon.ico':
+      res.setHeader('Content-Type', 'image/x-icon');
+      res.end(WebIcon);
+      break;
+    case '/favicon-16x16.png':
+      res.setHeader('Content-Type', 'image/png');
+      res.end(WebIcon16);
+      break;
+    case '/favicon-32x32.png':
+      res.setHeader('Content-Type', 'image/png');
+      res.end(WebIcon32);
+      break;
+    case '/status':
+      res.setHeader('Content-Type', 'application/json');
+      res.end(getStatus());
+      break;
+    default:
+      logInfo(`Client with IP '${req.headers['x-forwarded-for'] ?? req.socket.remoteAddress}' tried an unsupported HTTP request, replied with 404.`);
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'text/plain');
+      res.write('390: Chart editor not found.');
+      res.end();
+      break;
+    }
 });
 
 // Have the HTTP server start listening
@@ -140,6 +171,7 @@ WSServer.on('request', (request) => {
 
   const conn = request.accept('mercury-multi-mapper', request.origin);
 
+  // If we ever hit the limit of ints - I will be shocked - then add a check for it
   const clientID = currentNewClientID++;
 
   ClientConnections.set(clientID, conn);
@@ -192,6 +224,7 @@ WSServer.on('request', (request) => {
 });
 
 // -- Helper Functions
+
 // TODO: Improve client verification to help prevent spam, but this should be good enough for now... (Watch this become forever... it probably will.)
 // If you're reading this and it annoys you - feel free to send a PR to improve it.
 function requestAllowed(request) {
@@ -300,6 +333,7 @@ function getSessionIdFromCode(code) {
   }
 }
 
+// This should have a stupid low chance of happening, but it can happen.
 function checkForDuplicateSessionCode(code) {
   for (let [_, sessionData] of Sessions.entries()) {
     if (sessionData.code == code) {
@@ -329,6 +363,21 @@ function isSessionSynced(sendingClientSessionInfo) {
   }
 
   return true;
+}
+
+function getStatus() {
+  const res = {
+    connections: ClientConnections.size,
+    sessions: Sessions.size,
+    clients: Clients.size,
+    procUptime: process.uptime(),
+    osUptime: os.uptime(),
+    osCPU: os.loadavg(), // Hope you don't use Windows as your server OS :P
+    osTotalRAM: os.totalmem(),
+    osFreeRAM: os.freemem()
+  };
+
+  return JSON.stringify(res);
 }
 
 // -- Core Functions
@@ -428,13 +477,14 @@ function checkClientVersion(clientID, incomingData) {
 
 function createSession(clientID, incomingData) {
   const code = generateSessionCode();
+  // If we ever hit the limit of ints - I will be shocked - then add a check for it
   const newSessionID = currentNewSessionID++;
 
   const clientData = new ClientData(newSessionID, true, incomingData.StringData[0], incomingData.StringData[1]);
 
   Clients.set(clientID, clientData);
 
-  const sessionData = new SessionData(code, 'No Name', clientID);
+  const sessionData = new SessionData(code, clientID);
 
   Sessions.set(newSessionID, sessionData);
 
