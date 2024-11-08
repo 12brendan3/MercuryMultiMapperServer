@@ -296,11 +296,17 @@ function sendMessageSessionCreator(clientID, messageData) {
 function sendMessageOtherSessionClients(clientID, messageData) {
   const clientInfo = Clients.get(clientID);
 
-  if (!clientInfo) {
+  if (!clientInfo || !clientInfo.sessionID) {
     return;
   }
 
-  const otherClients = Sessions.get(clientInfo.sessionID).clientIDs;
+  const sessionInfo = Sessions.get(clientInfo.sessionID);
+
+  if (!sessionInfo) {
+    return;
+  }
+
+  const otherClients = sessionInfo.clientIDs;
   
   otherClients.forEach(otherClientID => {
     if (clientID == otherClientID) return;
