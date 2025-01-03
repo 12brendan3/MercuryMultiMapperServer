@@ -473,9 +473,11 @@ function checkClientVersion(clientID, incomingData) {
     return;
   }
 
+  logInfo(`Client ID '${clientID}' sent welcome message, sending reply.`);
+  sendMessage(clientID, new MessageFormat(MessageTypes.InitConnection, [ 'Hello MercuryMapper Client!' ]));
+
   if (SupportedVersions.includes(incomingData.StringData[1])) {
-    logInfo(`Client ID '${clientID}' sent welcome message and has a good version, sending reply.`);
-    sendMessage(clientID, new MessageFormat(MessageTypes.InitConnection, [ 'Hello MercuryMapper Client!' ]));
+    logInfo(`Client ID '${clientID}' has a good version.`);
   } else {
     logInfo(`Client ID '${clientID}' has a bad version.`);
     sendMessage(clientID, new MessageFormat(MessageTypes.OutdatedClient));
