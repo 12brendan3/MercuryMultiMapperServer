@@ -80,6 +80,7 @@ const MessageTypes = {
   PreviewTimeChange: 110,
   BgmOffsetChange: 111,
   BgaOffsetChange: 112,
+  BackgroundChange: 113,
 
   // 200 - Realtime Events
   InsertNote: 200,
@@ -440,6 +441,7 @@ function handleEvent(clientID, msg) {
     case MessageTypes.PreviewTimeChange:
     case MessageTypes.BgmOffsetChange:
     case MessageTypes.BgaOffsetChange:
+    case MessageTypes.BackgroundChange:
     case MessageTypes.InsertNote:
     case MessageTypes.InsertHoldNote:
     case MessageTypes.InsertHoldSegment:
