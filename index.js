@@ -35,7 +35,7 @@ class MessageFormat {
 }
 
 // -- Global constant values
-const SupportedVersions = [ '1.0.0' ];
+const SupportedVersions = [ '1.0.1' ];
 const ValidFileExtensions = [ '.wav', '.flac', '.ogg', '.mp3'];
 const Port = 5390;
 const ClientConnections = new Map();
@@ -80,6 +80,7 @@ const MessageTypes = {
   PreviewTimeChange: 110,
   BgmOffsetChange: 111,
   BgaOffsetChange: 112,
+  BackgroundChange: 113,
 
   // 200 - Realtime Events
   InsertNote: 200,
@@ -440,6 +441,7 @@ function handleEvent(clientID, msg) {
     case MessageTypes.PreviewTimeChange:
     case MessageTypes.BgmOffsetChange:
     case MessageTypes.BgaOffsetChange:
+    case MessageTypes.BackgroundChange:
     case MessageTypes.InsertNote:
     case MessageTypes.InsertHoldNote:
     case MessageTypes.InsertHoldSegment:
