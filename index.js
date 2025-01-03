@@ -111,7 +111,7 @@ if (!fs.existsSync('logs')) {
 
 // Make new log file
 const date = new Date();
-logPath = `logs/${date.getMonth()}-${date.getDate()}-${date.getFullYear()}_${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}.log`;
+logPath = `logs/${date.getMonth() + 1}-${date.getDate()}-${date.getFullYear()}_${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}.log`;
 fs.writeFileSync(logPath, '', 'utf-8');
 
 // Create the base HTTP server and return 404 for unknown requests
