@@ -35,7 +35,7 @@ class MessageFormat {
 }
 
 // -- Global constant values
-const SupportedVersions = [ '1.0.0', '1.0.1' ];
+const SupportedVersions = [ '1.0.1' ];
 const ValidFileExtensions = [ '.wav', '.flac', '.ogg', '.mp3'];
 const Port = 5390;
 const ClientConnections = new Map();
